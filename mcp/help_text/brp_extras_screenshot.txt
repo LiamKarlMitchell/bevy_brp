@@ -1,9 +1,32 @@
-Capture screenshots from running Bevy applications using bevy_brp_extras.
+Capture the primary window, a camera viewport, or an entity crop in one call.
 
-Behavior:
-- Captures current frame via bevy_brp_extras/screenshot
-- Saves to specified path
+Examples:
+- Full window: {"path":"/tmp/full.png","port":15702}
+- Camera viewport: {"camera":4294967297,"path":"/tmp/camera.png","port":15702}
+- Entity ID: {"entity":4294967298,"path":"/tmp/entity.png","port":15702}
+- Entity name: {"name":"NatesList","path":"/tmp/nates-list.png","port":15702}
 
-Prerequisites:
-- bevy_brp_extras dependency required
-- BrpExtrasPlugin must be registered
+Parameters:
+- path: Required PNG destination.
+- entity: Optional canonical u64 Bevy entity ID.
+- name: Optional one-call lookup of a unique, case-sensitive exact Bevy Name.
+- camera: Optional camera entity ID. Alone, captures its viewport; with entity or name, selects the
+  camera used for the crop.
+- padding: Optional physical-pixel padding around an entity crop; defaults to zero.
+- port: BRP port; defaults to 15702.
+
+Use either entity or name, never both. Padding requires one of them. A name capture internally uses
+the same standard world.query lookup as world_find_entities_by_name, requires one exact match, and
+sends only the resolved entity ID to bevy_brp_extras. Use world_find_entities_by_name first when you
+want non-exact discovery, need to inspect duplicate matches, or want to choose the entity ID yourself.
+
+Entity crops require the entity to be visible to the selected camera. If camera is omitted, exactly
+one eligible camera must be unambiguous. Crops use AABB bounds, or Bevy UI bounds when the
+bevy_brp_extras ui feature is enabled. They contain the final composited pixels inside the bounds,
+not an isolated render of the entity.
+
+The call returns only after the PNG is completely encoded and atomically published; filesystem
+polling is unnecessary. A minimized, hidden, or fully occluded primary window may legitimately
+produce a black image on platforms that stop presenting it.
+
+Requires bevy_brp_extras and BrpExtrasPlugin in the target application.

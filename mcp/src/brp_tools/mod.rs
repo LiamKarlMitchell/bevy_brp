@@ -16,6 +16,7 @@ pub use brp_client::FormatCorrectionStatus;
 pub use brp_client::JSON_RPC_ERROR_METHOD_NOT_FOUND;
 pub use brp_client::ResponseStatus;
 pub use brp_client::ResultStructBrpExt;
+pub(crate) use brp_client::method_not_found_message;
 //
 // Export brp_type_guide tools
 pub use brp_type_guide::AllTypeGuidesParams;
@@ -29,6 +30,8 @@ pub use port::Port;
 //
 // Export all tool parameter and result structs via the tools facade
 pub use tools::BrpExecute;
+pub use tools::BrpExtrasScreenshot;
+pub use tools::BrpListAgentTools;
 pub use tools::ClickMouseParams;
 pub use tools::ClickMouseResult;
 pub use tools::DespawnEntityParams;
@@ -40,6 +43,7 @@ pub use tools::DoubleTapGestureResult;
 pub use tools::DragMouseParams;
 pub use tools::DragMouseResult;
 pub use tools::ExecuteParams;
+pub use tools::FindEntitiesByNameParams;
 pub use tools::GetComponentsParams;
 pub use tools::GetComponentsResult;
 pub use tools::GetDiagnosticsParams;
@@ -50,6 +54,7 @@ pub use tools::InsertComponentsParams;
 pub use tools::InsertComponentsResult;
 pub use tools::InsertResourcesParams;
 pub use tools::InsertResourcesResult;
+pub use tools::ListAgentToolsParams;
 pub use tools::ListComponentsParams;
 pub use tools::ListComponentsResult;
 pub use tools::ListResourcesParams;
@@ -79,7 +84,6 @@ pub use tools::RpcDiscoverResult;
 pub use tools::ScreenshotEntityParams;
 pub use tools::ScreenshotEntityResult;
 pub use tools::ScreenshotParams;
-pub use tools::ScreenshotResult;
 pub use tools::ScrollMouseParams;
 pub use tools::ScrollMouseResult;
 pub use tools::SendKeysParams;
@@ -96,6 +100,7 @@ pub use tools::TriggerEventParams;
 pub use tools::TriggerEventResult;
 pub use tools::TypeTextParams;
 pub use tools::TypeTextResult;
+pub use tools::WorldFindEntitiesByName;
 //
 // Export watch tools
 pub use watch_tools::BevyListWatch;

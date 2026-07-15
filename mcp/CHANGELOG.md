@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.22.1] - 2026-07-15
+
+### Added
+- Add the fixed read-only `brp_list_agent_tools` discovery tool for fetching developer-published descriptions and raw JSON parameter/result schemas from `brp_extras/agent_tools`.
+
+## [0.22.0] - 2026-07-14
+
+### Added
+- Add the MCP-local `world_find_entities_by_name` tool, which discovers canonical entity IDs through standard BRP `world.query` with exact, prefix, suffix, or contains matching and does not require `bevy_brp_extras`.
+- Extend the existing `brp_extras_screenshot` tool to capture the full primary window, an active camera's viewport, or an entity crop by canonical ID or unique case-sensitive exact name. Name capture composes standard `world.query` discovery locally, sends only the resolved ID to extras, and preserves the terminal PNG result with resolved entity/name metadata.
+
+## [0.21.0] - 2026-07-10
+
+### Breaking Changes
+- Target discovery for `brp_launch` and `brp_list_bevy` no longer queries the MCP client for workspace roots (MCP Roots). The server now searches only its current working directory, or the explicit `path` parameter when supplied. Automatic discovery across multiple client-provided workspace folders is removed — pass `path` to target projects outside the server's working directory.
+
+### Changed
+- Upgrade `rmcp` from 1.7.0 to 2.2.0, removing the deprecated `roots/list` (`peer.list_roots()`) call that rmcp 2.x deprecates following the MCP Roots deprecation (SEP-2577).
+- Allow `brp_execute` to invoke application-defined methods reported by `rpc.discover`, with live method-name validation on the selected port.
+- Correct `rpc_discover` guidance for Bevy 0.19, which reports registered method names without parameter or result schemas.
+
 ## [0.20.1] - 2026-06-20
 
 ### Changed

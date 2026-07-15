@@ -12,7 +12,7 @@ license = "MIT OR Apache-2.0"
 name = "bevy_brp_extras"
 readme = "README.md"
 repository.workspace = true
-version = "0.21.0-dev"
+version = "0.23.0-dev"
 
 [dependencies]
 # Minimal Bevy features for extras library:
@@ -35,6 +35,7 @@ bevy_kana.workspace = true
 # which requires async-io and doesn't compile on wasm32)
 bevy_remote = { workspace = true, default-features = false }
 
+schemars.workspace     = true
 serde.workspace        = true
 serde_json.workspace   = true
 strum.workspace        = true
@@ -42,14 +43,18 @@ strum_macros.workspace = true
 
 # On native, enable HTTP transport (default features include async-io)
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-bevy_remote = { workspace = true, default-features = true }
+bevy_remote        = { workspace = true, default-features = true }
+image.workspace    = true
+tempfile.workspace = true
 
 [features]
-default     = ["diagnostics"]
+default     = ["diagnostics", "ui"]
 diagnostics = []
+ui          = ["bevy/bevy_ui"]
 
 [dev-dependencies]
-reqwest.workspace = true
+async-channel.workspace = true
+reqwest.workspace       = true
 
 [lints]
 workspace = true

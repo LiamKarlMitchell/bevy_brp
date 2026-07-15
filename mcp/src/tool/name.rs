@@ -37,7 +37,9 @@ use crate::brp_tools::AllTypeGuidesParams;
 use crate::brp_tools::BevyListWatch;
 use crate::brp_tools::BrpAllTypeGuides;
 use crate::brp_tools::BrpExecute;
+use crate::brp_tools::BrpExtrasScreenshot;
 use crate::brp_tools::BrpListActiveWatches;
+use crate::brp_tools::BrpListAgentTools;
 use crate::brp_tools::BrpStopWatch;
 use crate::brp_tools::BrpTypeGuide;
 use crate::brp_tools::ClickMouseParams;
@@ -51,6 +53,7 @@ use crate::brp_tools::DoubleTapGestureResult;
 use crate::brp_tools::DragMouseParams;
 use crate::brp_tools::DragMouseResult;
 use crate::brp_tools::ExecuteParams;
+use crate::brp_tools::FindEntitiesByNameParams;
 use crate::brp_tools::GetComponentsParams;
 use crate::brp_tools::GetComponentsResult;
 use crate::brp_tools::GetComponentsWatchParams;
@@ -62,6 +65,7 @@ use crate::brp_tools::InsertComponentsParams;
 use crate::brp_tools::InsertComponentsResult;
 use crate::brp_tools::InsertResourcesParams;
 use crate::brp_tools::InsertResourcesResult;
+use crate::brp_tools::ListAgentToolsParams;
 use crate::brp_tools::ListComponentsParams;
 use crate::brp_tools::ListComponentsResult;
 use crate::brp_tools::ListComponentsWatchParams;
@@ -92,7 +96,6 @@ use crate::brp_tools::RpcDiscoverResult;
 use crate::brp_tools::ScreenshotEntityParams;
 use crate::brp_tools::ScreenshotEntityResult;
 use crate::brp_tools::ScreenshotParams;
-use crate::brp_tools::ScreenshotResult;
 use crate::brp_tools::ScrollMouseParams;
 use crate::brp_tools::ScrollMouseResult;
 use crate::brp_tools::SendKeysParams;
@@ -111,6 +114,7 @@ use crate::brp_tools::TriggerEventResult;
 use crate::brp_tools::TypeGuideParams;
 use crate::brp_tools::TypeTextParams;
 use crate::brp_tools::TypeTextResult;
+use crate::brp_tools::WorldFindEntitiesByName;
 use crate::brp_tools::WorldGetComponentsWatch;
 use crate::log_tools::DeleteLogs;
 use crate::log_tools::DeleteLogsParams;
@@ -254,6 +258,8 @@ pub enum ToolName {
         result = "QueryResult"
     )]
     WorldQuery,
+    /// `world_find_entities_by_name` - Discover canonical entity IDs by reflected names
+    WorldFindEntitiesByName,
     /// `world_spawn_entity` - Spawn entities with components
     #[brp_tool(
         brp_method = "world.spawn_entity",
@@ -293,14 +299,12 @@ pub enum ToolName {
     // BRP Execute Tool
     /// `brp_execute` - Execute arbitrary BRP method
     BrpExecute,
+    /// `brp_list_agent_tools` - List developer-published application method guidance
+    BrpListAgentTools,
 
     // BRP Extras Tools
     /// `brp_extras_screenshot` - Capture screenshots
-    #[brp_tool(
-        brp_method = "brp_extras/screenshot",
-        params = "ScreenshotParams",
-        result = "ScreenshotResult"
-    )]
+    #[brp_tool(brp_method = "brp_extras/screenshot")]
     BrpExtrasScreenshot,
     /// `brp_extras_screenshot_entity` - Capture a cropped screenshot of one UI entity
     #[brp_tool(
@@ -525,6 +529,11 @@ impl ToolName {
                 ToolCategory::Component,
                 EnvironmentImpact::ReadOnly,
             ),
+            Self::WorldFindEntitiesByName => Annotation::new(
+                "find entities by name",
+                ToolCategory::Discovery,
+                EnvironmentImpact::ReadOnly,
+            ),
             Self::RegistrySchema => Annotation::new(
                 "get type schemas using 'registry.schema' method",
                 ToolCategory::Discovery,
@@ -563,7 +572,12 @@ impl ToolName {
             Self::BrpExecute => Annotation::new(
                 "execute brp method",
                 ToolCategory::DynamicBrp,
-                EnvironmentImpact::AdditiveIdempotent,
+                EnvironmentImpact::DestructiveNonIdempotent,
+            ),
+            Self::BrpListAgentTools => Annotation::new(
+                "list agent tools",
+                ToolCategory::Discovery,
+                EnvironmentImpact::ReadOnly,
             ),
             Self::BrpExtrasScreenshot => Annotation::new(
                 "take screenshot",
@@ -764,6 +778,9 @@ impl ToolName {
                 Some(parameters::build_parameters_from::<MutateResourcesParams>)
             },
             Self::WorldQuery => Some(parameters::build_parameters_from::<QueryParams>),
+            Self::WorldFindEntitiesByName => {
+                Some(parameters::build_parameters_from::<FindEntitiesByNameParams>)
+            },
             Self::RegistrySchema => Some(parameters::build_parameters_from::<RegistrySchemaParams>),
             Self::WorldRemoveComponents => {
                 Some(parameters::build_parameters_from::<RemoveComponentsParams>)
@@ -780,6 +797,9 @@ impl ToolName {
                 Some(parameters::build_parameters_from::<TriggerEventParams>)
             },
             Self::BrpExecute => Some(parameters::build_parameters_from::<ExecuteParams>),
+            Self::BrpListAgentTools => {
+                Some(parameters::build_parameters_from::<ListAgentToolsParams>)
+            },
             Self::BrpExtrasScreenshot => {
                 Some(parameters::build_parameters_from::<ScreenshotParams>)
             },
@@ -864,6 +884,7 @@ impl ToolName {
             Self::WorldMutateComponents => Arc::new(WorldMutateComponents),
             Self::WorldMutateResources => Arc::new(WorldMutateResources),
             Self::WorldQuery => Arc::new(WorldQuery),
+            Self::WorldFindEntitiesByName => Arc::new(WorldFindEntitiesByName),
             Self::RegistrySchema => Arc::new(RegistrySchema),
             Self::WorldRemoveComponents => Arc::new(WorldRemoveComponents),
             Self::WorldRemoveResources => Arc::new(WorldRemoveResources),
@@ -890,6 +911,7 @@ impl ToolName {
 
             // Special tools with their own implementations
             Self::BrpExecute => Arc::new(BrpExecute),
+            Self::BrpListAgentTools => Arc::new(BrpListAgentTools),
             Self::WorldGetComponentsWatch => Arc::new(WorldGetComponentsWatch),
             Self::WorldListComponentsWatch => Arc::new(BevyListWatch),
             Self::BrpListActiveWatches => Arc::new(BrpListActiveWatches),
@@ -925,4 +947,128 @@ impl ToolName {
     /// Get a short human-readable title for this tool
     /// Extracted from the annotation data we already have
     pub(super) fn short_title(self) -> String { self.get_annotations().title }
+}
+
+#[cfg(test)]
+mod tests {
+    use rmcp::model::ToolAnnotations;
+    use serde_json::Value;
+
+    use super::ToolName;
+
+    const CATALOG_ENTRY_NAME: &str = "test_multiply";
+
+    #[test]
+    fn brp_execute_annotations_are_conservative() {
+        let annotations = ToolAnnotations::from(ToolName::BrpExecute.get_annotations());
+
+        assert_eq!(annotations.read_only_hint, Some(false));
+        assert_eq!(annotations.destructive_hint, Some(true));
+        assert_eq!(annotations.idempotent_hint, Some(false));
+    }
+
+    #[test]
+    fn agent_catalog_is_a_registered_read_only_discovery_tool() {
+        let tool_name = ToolName::BrpListAgentTools;
+        let annotations = ToolAnnotations::from(tool_name.get_annotations());
+        let definitions = crate::tool::get_all_tool_definitions();
+
+        assert_eq!(tool_name.to_string(), "brp_list_agent_tools");
+        assert_eq!(tool_name.to_brp_method(), None);
+        assert_eq!(annotations.read_only_hint, Some(true));
+        assert_eq!(annotations.destructive_hint, None);
+        assert!(
+            definitions
+                .iter()
+                .any(|definition| definition.tool_name == tool_name)
+        );
+        assert!(
+            definitions
+                .iter()
+                .all(|definition| definition.name() != CATALOG_ENTRY_NAME)
+        );
+    }
+
+    #[test]
+    fn agent_catalog_schema_registers_only_the_port() {
+        let parameters = ToolName::BrpListAgentTools.get_parameters();
+        assert!(parameters.is_some());
+
+        if let Some(build_parameters) = parameters {
+            let schema = build_parameters().build();
+            let properties = schema.get("properties").and_then(Value::as_object);
+            assert!(properties.is_some());
+            if let Some(properties) = properties {
+                assert_eq!(properties.len(), 1);
+                assert!(properties.contains_key("port"));
+            }
+            assert!(schema.get("required").is_none());
+        }
+    }
+
+    #[test]
+    fn agent_catalog_help_cross_links_discovery_and_execution_without_native_tools() {
+        let catalog_help = ToolName::BrpListAgentTools
+            .description()
+            .split_whitespace()
+            .collect::<Vec<_>>()
+            .join(" ");
+        let execute_help = ToolName::BrpExecute.description();
+        let discover_help = ToolName::RpcDiscover.description();
+
+        assert!(catalog_help.contains("rpc_discover"));
+        assert!(catalog_help.contains("brp_execute"));
+        assert!(catalog_help.contains("not native MCP tools"));
+        assert!(execute_help.contains("brp_list_agent_tools"));
+        assert!(execute_help.contains("rpc.discover"));
+        assert!(discover_help.contains("brp_list_agent_tools"));
+        assert!(discover_help.contains("brp_execute"));
+        assert!(!execute_help.contains("native per-entry"));
+        assert!(!discover_help.contains("native per-entry"));
+    }
+
+    #[test]
+    fn mcp_service_has_no_agent_catalog_state() {
+        let service_source = include_str!("../mcp_service.rs");
+
+        assert!(!service_source.contains("RemoteCatalog"));
+        assert!(!service_source.contains("agent_catalog"));
+        assert!(!service_source.contains("tools/list_changed"));
+    }
+
+    #[test]
+    fn name_discovery_is_a_registered_read_only_local_tool() {
+        let tool_name = ToolName::WorldFindEntitiesByName;
+        let annotations = ToolAnnotations::from(tool_name.get_annotations());
+
+        assert_eq!(tool_name.to_string(), "world_find_entities_by_name");
+        assert_eq!(tool_name.to_brp_method(), None);
+        assert_eq!(annotations.read_only_hint, Some(true));
+        assert_eq!(annotations.destructive_hint, None);
+        assert!(tool_name.description().contains("standard BRP"));
+        assert!(
+            crate::tool::get_all_tool_definitions()
+                .iter()
+                .any(|definition| definition.tool_name == tool_name)
+        );
+    }
+
+    #[test]
+    fn name_discovery_schema_registers_typed_parameters() {
+        let parameters = ToolName::WorldFindEntitiesByName.get_parameters();
+        assert!(parameters.is_some());
+
+        if let Some(build_parameters) = parameters {
+            let schema = build_parameters().build();
+            let properties = schema.get("properties").and_then(Value::as_object);
+            assert!(properties.is_some());
+
+            if let Some(properties) = properties {
+                assert!(properties.contains_key("name"));
+                assert!(properties.contains_key("match_mode"));
+                assert!(properties.contains_key("port"));
+            }
+            assert_eq!(schema.get("required"), Some(&serde_json::json!(["name"])));
+        }
+    }
 }

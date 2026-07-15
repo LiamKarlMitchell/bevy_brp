@@ -14,6 +14,9 @@
     reason = "false positive on enum struct variant fields"
 )]
 
+#[path = "extras_plugin/screenshot_fixtures.rs"]
+mod screenshot_fixtures;
+
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::sync::Arc;
@@ -126,11 +129,26 @@ use bevy::window::WindowPlugin;
 use bevy::window::WindowPosition;
 use bevy::world_serialization::WorldAsset;
 use bevy::world_serialization::WorldAssetRoot;
+use bevy_brp_extras::AgentTool;
+use bevy_brp_extras::AppAgentToolExt;
 use bevy_brp_extras::BrpExtrasPlugin;
 use bevy_brp_extras::PortDisplay;
+use bevy_remote::BrpError;
+use bevy_remote::BrpResult;
+use bevy_remote::RemoteMethodSystemId;
+use bevy_remote::RemoteMethods;
+use bevy_remote::error_codes;
+use schemars::JsonSchema;
+use serde::Deserialize;
+use serde::Serialize;
+use serde_json::Value;
+use serde_json::json;
 
 // asset paths
 const CAUSTIC_LIGHTMAP_PATH: &str = "lightmaps/caustic_directional_texture.png";
+
+// custom BRP fixture
+const MULTIPLY_METHOD: &str = "test/multiply";
 
 // collection fixtures
 const ENUM_KEYED_FIRST_VALUE: &str = "first";
@@ -881,6 +899,77 @@ impl Default for TestCollectionComponent {
     }
 }
 
+struct ParameterizedBrpPlugin;
+
+impl Plugin for ParameterizedBrpPlugin {
+    fn build(&self, app: &mut App) {
+        let system_id = app.world_mut().register_system(multiply_handler);
+        {
+            let Some(mut remote_methods) = app.world_mut().get_resource_mut::<RemoteMethods>()
+            else {
+                warn!("{MULTIPLY_METHOD} was not registered because Bevy Remote is unavailable");
+                return;
+            };
+            remote_methods.insert(MULTIPLY_METHOD, RemoteMethodSystemId::Instant(system_id));
+        }
+
+        app.register_agent_tool(
+            AgentTool::new(
+                "test_multiply",
+                "test/multiply",
+                "Multiply two signed integers with overflow checking",
+            )
+            .params_schema_for::<MultiplyParams>()
+            .result_schema_for::<MultiplyResult>(),
+        );
+    }
+}
+
+#[derive(Deserialize, JsonSchema)]
+struct MultiplyParams {
+    value:  i64,
+    factor: i64,
+}
+
+#[derive(Serialize, JsonSchema)]
+struct MultiplyResult {
+    value:   i64,
+    factor:  i64,
+    product: i64,
+}
+
+fn multiply_handler(In(params): In<Option<Value>>) -> BrpResult {
+    let params = params.ok_or_else(|| invalid_multiply_params("missing parameters"))?;
+    let params: MultiplyParams = serde_json::from_value(params).map_err(invalid_multiply_params)?;
+    let product = params
+        .value
+        .checked_mul(params.factor)
+        .ok_or_else(|| invalid_multiply_params("value multiplied by factor exceeds i64"))?;
+
+    let result = MultiplyResult {
+        value: params.value,
+        factor: params.factor,
+        product,
+    };
+    serde_json::to_value(result).map_err(|error| {
+        BrpError::internal(format!("failed to serialize multiply result: {error}"))
+    })
+}
+
+fn invalid_multiply_params(error: impl ToString) -> BrpError {
+    BrpError {
+        code:    error_codes::INVALID_PARAMS,
+        message: error.to_string(),
+        data:    Some(json!({
+            "method": MULTIPLY_METHOD,
+            "expected": {
+                "value": "i64",
+                "factor": "i64",
+            },
+        })),
+    }
+}
+
 fn main() {
     let brp_extras_plugin = BrpExtrasPlugin::new().port_in_title(PortDisplay::Always);
     let (port, _) = brp_extras_plugin.get_effective_port();
@@ -899,7 +988,9 @@ fn main() {
             ..default()
         }))
         .add_plugins(brp_extras_plugin)
+        .add_plugins(ParameterizedBrpPlugin)
         .add_plugins(MeshPickingPlugin)
+        .add_plugins(screenshot_fixtures::ScreenshotFixturesPlugin)
         .init_resource::<KeyboardInputHistory>()
         .init_resource::<TextInputContent>()
         .init_resource::<GlobalsUniform>()

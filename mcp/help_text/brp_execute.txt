@@ -1,1 +1,8 @@
-Execute any Bevy Remote Protocol (BRP) method on a running Bevy app to send arbitrary commands and receive responses.
+Execute any BRP method registered on a running Bevy app.
+
+The tool calls rpc.discover on the selected port, requires an exact method-name match, then forwards
+the caller-supplied params as raw JSON. Use brp_list_agent_tools first when the application publishes
+curated descriptions and raw parameter/result schemas, and follow its result.usage guidance.
+
+For MCP invocation, use brp_execute for discovery validation, timeout handling, and BRP error
+details. Direct HTTP JSON-RPC is a developer-only alternative outside MCP.

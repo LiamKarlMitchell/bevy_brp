@@ -16,6 +16,44 @@
 //!     .run();
 //! ```
 //!
+//! # BRP methods and agent tools
+//!
+//! Registering a remote method inserts its system into
+//! [`RemoteMethods`](bevy_remote::RemoteMethods), which makes the method callable and visible in
+//! exhaustive `rpc.discover` transport discovery. Calling
+//! [`AppAgentToolExt::register_agent_tool`] is a separate action: it publishes an agent-facing
+//! description and optional raw JSON schemas for one existing instant method. It does not register
+//! the backing BRP handler or create a native MCP tool.
+//!
+//! Every published [`AgentTool`] names a BRP method, while most BRP methods need not be published
+//! as agent tools. See the complete
+//! [agent tool registration example](https://github.com/natepiano/bevy_brp/blob/main/extras/examples/agent_tool_registration.rs)
+//! for the required plugin ordering, method insertion, and mutable-resource borrow scope.
+//!
+//! After running the example, agents list the curated entries and pass a selected entry's exact
+//! method and matching raw parameters to `brp_execute`:
+//!
+//! ```text
+//! cargo run -p bevy_brp_extras --example agent_tool_registration
+//! brp_list_agent_tools(port: 15702)
+//! brp_execute(
+//!     port: 15702,
+//!     method: "example/multiply",
+//!     params: { "value": 6, "factor": 7 }
+//! )
+//! ```
+//!
+//! An omitted parameter schema documents a parameterless method whose JSON-RPC request omits
+//! `params`. An omitted result schema leaves the raw BRP JSON-RPC `result` undocumented. Schema
+//! types supplied through the generic builder methods generate documentation during application
+//! construction only; they do not decode requests or encode results.
+//!
+//! [`struct@BrpExtrasPlugin`] installs the instant `brp_extras/agent_tools` endpoint that publishes
+//! the current metadata. Each request validates every backing method against the live
+//! [`RemoteMethods`](bevy_remote::RemoteMethods) resource. If any entry's method is missing or is a
+//! watching method, the request returns no partial catalog. Its BRP error data identifies the
+//! rejected entry with stable `name`, `method`, and `reason` fields.
+//!
 //! # Plugin Composability
 //!
 //! `BrpExtrasPlugin` is designed to compose with existing BRP setups. If
@@ -44,10 +82,34 @@
 //! ## App Lifecycle
 //!
 //! ### `brp_extras/screenshot`
-//! Captures a screenshot of the primary window and saves it to a file.
-//! - `path` (string, required): file path where the screenshot will be saved
+//! Captures the primary window, a camera viewport, or a bounds-backed entity and publishes a
+//! complete PNG.
+//! The watching request returns only after publication.
+//! Success means the PNG is fully encoded and atomically published; it does not assert that scene
+//! content is nonuniform. A minimized, hidden, or fully occluded primary-window surface may
+//! legitimately produce a black image on platforms that stop presenting it. Entity captures
+//! reflect the selected camera target; retained image or other offscreen targets avoid
+//! primary-window presentation dependence when the application is designed to use them.
+//! - `path` (string, required): destination file path
+//! - `entity` (u64, optional): exact Bevy entity ID whose bounds select the crop
+//! - `camera` (u64, optional): active camera viewport, or the camera used for entity capture
+//! - `padding` (u32, optional): physical pixels added around entity bounds; requires `entity` and
+//!   defaults to zero
 //!
-//! **Note**: Requires Bevy's `png` feature enabled, otherwise files will be 0 bytes.
+//! AABB capture projects the selected entity's [`Aabb`](bevy::camera::primitives::Aabb) through
+//! the selected camera. With the default `ui` feature, complete Bevy UI computed components take
+//! precedence over an incidental AABB and supply transformed, clipped physical bounds plus their
+//! computed target camera. Partial UI computed state is rejected. Disabling default features
+//! retains AABB capture without compiling this crate's UI bounds resolver, imports, or capability.
+//! This does not guarantee removal of UI crates from the dependency graph because upstream Bevy
+//! 0.19 `bevy_remote` brings that family transitively through `bevy_dev_tools`. Both modes crop the
+//! complete composited target, so overlapping content and post-processing remain visible. With
+//! neither `camera` nor `entity`, the method captures the primary window. With only `camera`, it
+//! captures that camera's physical viewport. The method never resolves names or descendants. If
+//! `camera` is omitted for AABB capture, exactly one active, initialized camera with a
+//! screenshot-capable target must exist.
+//!
+//! Requires Bevy's `png` feature. Calls fail before enqueueing when PNG support is unavailable.
 //!
 //! ### `brp_extras/shutdown`
 //! Schedules a graceful application shutdown. No parameters.
@@ -135,23 +197,15 @@
 //! Sends a rotation gesture.
 //! - `delta` (f32, required): rotation in radians
 //!
-//! ## UI Inspection
+//! ## Agent Tools
 //!
-//! ### `brp_extras/snapshot`
-//! Recursive outline of the UI entity tree (Bevy UI `Node` roots), returned
-//! as YAML: entity id, a short component-type label, and any text content.
-//! - `root` (entity id, optional): restrict the outline to one entity's
-//!   subtree instead of every root `Node` in the world
-//!
-//! ### `brp_extras/screenshot_entity`
-//! PNG crop of a single UI node's on-screen rect. Reuses the same
-//! window-screenshot + async-save path as `brp_extras/screenshot`.
-//! - `entity` (entity id, required): must have `ComputedNode` +
-//!   `UiGlobalTransform` (i.e. be a laid-out UI node)
-//! - `path` (string, required): file path where the crop will be saved
-//!
-//! **Note**: Requires Bevy's `png` feature enabled, same as `screenshot`.
+//! ### `brp_extras/agent_tools`
+//! Returns the catalog of agent tools published through
+//! [`AppAgentToolExt::register_agent_tool`]. No parameters.
+//! See [BRP methods and agent tools](#brp-methods-and-agent-tools) for the per-request validation
+//! rules and the BRP error data returned for a rejected entry.
 
+mod agent_tools;
 mod constants;
 #[cfg(feature = "diagnostics")]
 mod diagnostics;
@@ -165,6 +219,8 @@ mod snapshot;
 mod window_event;
 mod window_title;
 
+pub use agent_tools::AgentTool;
+pub use agent_tools::AppAgentToolExt;
 pub use constants::DEFAULT_REMOTE_PORT;
 pub use plugin::BrpExtrasPlugin;
 #[cfg(not(target_arch = "wasm32"))]

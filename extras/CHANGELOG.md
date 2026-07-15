@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.22.1] - 2026-07-15
+
+### Added
+- Add the public `AgentTool` builder and `AppAgentToolExt::register_agent_tool` extension API for publishing typed descriptions and raw JSON parameter/result schemas for existing instant BRP methods.
+- Add the version-1 `brp_extras/agent_tools` endpoint with deterministic ordering and request-time all-or-error validation against live instant methods.
+
+## [0.22.0] - 2026-07-14
+
+### Added
+- Extend the existing terminal `brp_extras/screenshot` method with active-camera viewport capture and AABB entity capture using optional entity ID, camera ID, and physical-pixel padding fields.
+- Add default-enabled optional Bevy UI entity bounds with transformed, clipped, viewport-local crop resolution.
+- Add immutable entity, name, camera, bounds-kind, and crop-rectangle metadata to successful entity capture responses.
+
+### Changed
+- Keep one screenshot request in flight while the watching BRP call waits for capture, encoding, and PNG publication; remove request tokens, request coalescing, destination reservations, path generations, and same-target job batching.
+- Prefer complete UI computed bounds over incidental AABBs, reject partial UI initialization, and retain AABB capture with the UI resolver disabled in no-default builds.
+- Reject padding without an entity, entity names in extras requests, hidden or off-layer entities, ambiguous cameras, and unsupported camera targets.
+
+## [0.21.0] - 2026-07-10
+
+### Changed
+- Version bump to 0.21.0 to maintain workspace version synchronization
+
 ## [0.20.1] - 2026-06-20
 
 ### Changed
