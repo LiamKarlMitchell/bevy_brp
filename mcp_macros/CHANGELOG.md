@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.22.2] - 2026-07-29
+
+### Changed
+- Update the `syn` dependency from 2.0 to 3.0. Generated code is unchanged.
+
 ## [0.22.1] - 2026-07-15
 
 ### Changed
