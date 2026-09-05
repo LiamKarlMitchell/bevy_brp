@@ -45,7 +45,13 @@ reqwest = { version = "0.13.4", features = ["blocking", "json", "stream"] }
 rmcp = { version = "3.0.1", features = ["server", "transport-io"] }
 schemars = "1.2.2"
 serde = { version = "1.0", features = ["derive"] }
-serde_json = { version = "1.0.151", features = ["preserve_order"] }
+# Kept at `1` rather than a `1.0.151` floor so this can unify with an
+# older 1.0.x. Jackdaw builds its SDK against its own lockfile and
+# redirects the project's `serde_json` to that artifact; a floor above
+# the SDK's version cannot be satisfied, the redirect is dropped for
+# this crate alone, and neighbours that still redirect (gltf_json) then
+# disagree with it about what `serde_json::Value` is.
+serde_json = { version = "1", features = ["preserve_order"] }
 strum = "0.28.0"
 strum_macros = "0.28.0"
 syn = { version = "3.0.3", features = ["extra-traits", "full"] }
